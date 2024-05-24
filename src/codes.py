@@ -38,7 +38,7 @@ def guess_code(guess, print_result=True, code=CODE):
 
     HIST.append(guess)
     RES.append((correct_colors, correct_positions))
-
+    print("gabarito", code, end="")
     # Imprime o palpite e o resultado
     if len(RES) < 10 and print_result:
         print(f"({len(RES)}):    ", *guess, f" => {RES[-1]}     ")

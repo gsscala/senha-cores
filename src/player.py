@@ -1,119 +1,265 @@
-#!/usr/bin/env python3
-"""
-Implemente aqui o seu código para o jogador.
-
-Seu principal objetivo é implementar a função `player`, que deve retornar uma lista de 4 cores, o seu próximo palpite.
-Como exemplo, a função abaixo retorna um palpite aleatório.
-
-Dicas:
-- Você pode implementar outras funções para auxiliar a função `player`.
-- Você pode salvar informações entre os palpites usando variáveis globais (fora de qualquer função).
-"""
 from colors import *
-from random import sample, randint
-import itertools
-from permutar_cores import quatro_acertos
+from random import sample, choice
+from permutar_cores import quatro_acerto
 
-# Cores disponíveis para o palpite
-colors = [RED, GREEN, BLUE, YELLOW, ORANGE, BLACK, WHITE]
+colors = [RED, GREEN, BLUE, YELLOW, ORANGE, BLACK, WHITE]  # possibilidades de cores
+apostas_positivas = []  # apostas de elementos que podem estar certos
+apostas_negativas = []  # apostas de elementos que podem estar errados
+possibilidades = []  # elementos incertos se estão certos ou errados
+blacklist = []  # elementos errados
+whitelist = []  # elementos certos
+historico_modificado = []
+opcoes = []
 
-def compare_tuple_Lists(tuple_list_one, tuple_list_two):
-    return [tuple1 for tuple1 in tuple_list_one for tuple2 in tuple_list_two if set(tuple1) == set(tuple2)]
 
-def get_remaining_colors(sub_color_list, super_color_list):
-    return [possible_color for possible_color in super_color_list if possible_color not in sub_color_list]
+def checagem(retorno, guess_hist):
+    """
+    Retorna um valor booleano correspondente à ausência do palpite atual nos palpites anteriores, sendo a ordem das cores no palpite irrelevante para a checagem. Além disso, garante que haja exatamente 4 elementos, sendo nenhum repetido, com todos da whitelist presentes e nenhum da blacklist.
+    """
+    print(
+        "palpite",
+        retorno,
+        "a_p",
+        apostas_positivas,
+        "a_n",
+        apostas_negativas,
+        "poss",
+        possibilidades,
+        "bl",
+        blacklist,
+        "wl",
+        whitelist,
+    )
+    return (
+        set(retorno) not in map(set, guess_hist)
+        and set(retorno).isdisjoint(set(blacklist))
+        and set(whitelist).issubset(set(retorno))
+        and len(set(retorno)) == 4
+    )
 
-def create_possible_list(right_colors_combinations_list, all_colors):
-    possible_combination = []
-    for right_color_combination in right_colors_combinations_list:
-        possible_combination.extend(complete_guess(right_color_combination, all_colors))
 
-    return possible_combination
+def algoritmo_padrao(guess_hist, lista):
+    tentativa = lista.copy()  # lista vai ser baseada na ultima tentativa
+    apostas_negativas.append(
+        choice(tentativa)
+    )  # aposta que um elemento da lista ta errado
+    apostas_positivas.append(
+        choice(list(set(colors) - set(tentativa)))
+    )  # aposta que um elemento que não esteja na lista seja um certo
+    tentativa.remove(apostas_negativas[-1])  # tira o elemento errado
+    tentativa.append(apostas_positivas[-1])  # coloca o elemento certo
+    # se checagem == verdadeiro
+    if checagem(tentativa, guess_hist):
+        return tentativa
+    # se checagem == falso
+    del apostas_negativas[-1]
+    del apostas_positivas[-1]
+    return algoritmo_padrao(guess_hist, lista)
 
-def intersect_and_filter(guess_hist, result_index, include):
-    previoues_guess = guess_hist[result_index]
-    actual_guess = guess_hist[-1]
-    intersection_colors = list(set(previoues_guess) & set(actual_guess))
-    intersection_colors_positions = [previoues_guess.index(color) for color in intersection_colors]
 
-    for color, position in zip(intersection_colors, intersection_colors_positions):
-        filter_List(color, position, include)
+def x_acerto(guess_hist):
+    global opcoes
+    if (
+        len(set(set(whitelist) | set(possibilidades))) == 4
+    ):  # se whitelist + possibilidades tiver 4 elementos, então estes 4 são a resposta.
+        lista = list(set(set(whitelist) | set(possibilidades)))
+        # se checagem == verdadeiro
+        if checagem(lista, guess_hist):
+            return lista
+        # se checagem == falso
+        return x_acerto(guess_hist)
 
-def complete_guess(right_colors, all_colors):
-    right_colors_list = [right_color for right_color in right_colors]
-    remaining_colors = get_remaining_colors(all_colors, colors)
-    all_possible_colors = right_colors_list + remaining_colors
-    all_possible_combinations = list(itertools.combinations(all_possible_colors, 4))
-    final_combination = [possible_combinations for possible_combinations in all_possible_combinations if set(right_colors_list).issubset(set(possible_combinations))]
+    try:
+        if (
+            historico_modificado[-2][0] == historico_modificado[-1][0] + 1
+        ):  # perdeu um acerto
+            del historico_modificado[
+                -1
+            ]  # apaga essa ocorrência para que comparações futuras ocorram devidamente
+            whitelist.append(
+                apostas_negativas[-1]
+            )  # coloca o elemento tirado como certo
+            blacklist.append(
+                apostas_positivas[-1]
+            )  # coloca o elemento inserido como errado
+            try:
+                if (
+                    historico_modificado[-3][0] == historico_modificado[-2][0]
+                ):  # se o histórico dos dois anteriores for igual e o deste for menor, significa que a lista de possibilidades estava certa
+                    whitelist.extend(
+                        possibilidades
+                    )  # adiciona as possibilidades à lista de elementos garantidos
+                    possibilidades.clear()  # limpa a lista de possibilidades
+                    if (
+                        len(set(whitelist)) == 3
+                    ):  # se a whitelist tiver tamanho 3 (muito alto para depender da função checagem. ela cometeria overflow de tantas recursões até garantir que todo este whitelist esteja presente)
+                        lista = list(set(whitelist))
+                        opcoes = guess_hist[
+                            -1
+                        ].copy()  # cria uma lista opções que é igual à tentativa anterior, de resultado 1,x. o código iterará por essa lista adicionando um de seus elementos à lista criada a partir da whitelist de tamanho 3
+                        apostas_positivas.append(
+                            choice(opcoes)
+                        )  # aposta que um dos elementos da lista de oppções está correto
+                        lista.append(apostas_positivas[-1])
+                        opcoes.remove(apostas_positivas[-1])
+                        if checagem(lista, guess_hist):
+                            return lista
+                        del apostas_positivas[-1]
+                        return x_acerto(guess_hist)
+            except:
+                pass
+            lista = guess_hist[-1].copy()
+            lista.append(
+                apostas_negativas[-1]
+            )  # se eu perdi um acerto, então o que eu coloquei está errado, e o que eu tirei está certo.
+            lista.remove(apostas_positivas[-1])
+            return algoritmo_padrao(guess_hist, lista)
+        elif (
+            historico_modificado[-2][0] == historico_modificado[-1][0] - 1
+        ):  # aumentou um acerto
+            try:
+                if (
+                    historico_modificado[-3][0] == historico_modificado[-2][0]
+                ):  # se o histórico dos dois anteriores for igual e o deste for maior, significa que a lista de possibilidades estava errada
+                    blacklist.extend(
+                        possibilidades
+                    )  # adiciona as possibilidades à lista de elementos errados
+                    possibilidades.clear()  # limpa a lista de possibilidades
+            except:
+                pass
+            whitelist.append(
+                apostas_positivas[-1]
+            )  # colcoa o elemento inserido como certo
+            blacklist.append(
+                apostas_negativas[-1]
+            )  # coloca o elemento tirado como errado
+            if (
+                len(set(whitelist)) == 3
+            ):  # se pá que eu preciso adicionar o cado de wl == 2
+                lista = guess_hist[-1].copy()  # lista vai ser a ultima tentativa
+                lista.remove(apostas_positivas[-1])  # tira a ultima aposta
+                blacklist.append(apostas_positivas[-1])  # bane ela
+                try:
+                    opcoes.remove(apostas_positivas[-1])  # tira das opcoes
+                except ValueError:
+                    pass
+                apostas_positivas.append(choice(opcoes))  # faz outra aposta das opcoes
+                lista.append(apostas_positivas[-1])  # adiciona à lista
+                if checagem(lista, guess_hist):
+                    return lista
+                # se checagem == falso
+                del apostas_positivas[-1]
+                opcoes.append(apostas_positivas[-1])
+                blacklist.remove(apostas_positivas[-1])
+                return x_acerto(guess_hist)
+            lista = guess_hist[-1].copy()
+            # lista.append(apostas_positivas[-1])
+            # lista.remove(apostas_negativas[-1])
+            return algoritmo_padrao(guess_hist, lista)
+        else:  # continuou igual o numero de acertos
+            lista = guess_hist[-1].copy()
+            possibilidades.append(
+                apostas_positivas[-1]
+            )  # o ultimo elemento adicionado pode estar certo
+            possibilidades.append(
+                apostas_negativas[-1]
+            )  # o ultimo elemento removido pode estar certo
+            if len(set(whitelist)) == 3:  # mesmo role de antes
+                lista.remove(apostas_positivas[-1])
+                blacklist.append(apostas_positivas[-1])
+                try:
+                    opcoes.remove(apostas_positivas[-1])
+                except ValueError:
+                    pass
+                apostas_positivas.append(choice(opcoes))
+                lista.append(apostas_positivas[-1])
+                if checagem(lista, guess_hist):
+                    return lista
+                # se checagem == falso
+                del apostas_positivas[-1]
+                opcoes.append(apostas_positivas[-1])
+                blacklist.remove(apostas_positivas[-1])
+                return x_acerto(guess_hist)
+            if (
+                len(set(set(whitelist) | set(possibilidades))) >= 3
+                and apostas_positivas[-1] in whitelist
+            ):  # caso extraordinário
+                lista = guess_hist[-1].copy()
+                whitelist.extend(
+                    set(possibilidades)
+                )  # possibilidade está certa (mova-a à whitelist)
+                possibilidades.clear()
+                return algoritmo_padrao(guess_hist, lista)
+            if (
+                len(set(set(whitelist) | set(possibilidades))) == 4
+            ):  # se wl + possibilidades = 4 essa eh a resposta
+                lista = list(set(set(whitelist) | set(possibilidades)))
+                # se checagem == verdadeiro
+                if checagem(lista, guess_hist):
+                    return lista
+                # se checagem == falso
+                return x_acerto(guess_hist)
+            if (
+                len(set(blacklist)) == 2
+                and set(guess_hist[-1]).issuperset(set(whitelist))
+                and set(guess_hist[-1]).issuperset(set(possibilidades))
+            ):  # se a blacklist tiver tamanho 2 e for superconjunto tanto da whitelist quando das possibilidades,
+                lista.append(opcoes[0])  # o que lhe falta é a única opção restante
+                # se checagem == verdadeiro
+                if checagem(lista, guess_hist):
+                    return lista
+                # se checagem == falso
+                return x_acerto(guess_hist)
+            if len(set(blacklist)) == 2:  # se a blacklist tiver tamanho 2
+                lista = list(
+                    set(set(whitelist) | set(possibilidades))
+                )  # lista = whitelist + possibilidades
+                opcoes = list(
+                    set(guess_hist[-1]) - set(lista)
+                )  # opcoes = ultima tentativa - whitelist - possibilidades
+                apostas_positivas.append(
+                    choice(opcoes)
+                )  # aposta que uma opção ta certa
+                lista.append(apostas_positivas[-1])
+                opcoes.remove(apostas_positivas[-1])
+                # se checagem == verdadeiro
+                if checagem(lista, guess_hist):
+                    return lista
+                # se checagem == falso
+                opcoes.append(apostas_positivas[-1])
+                del apostas_positivas[-1]
+                return x_acerto(guess_hist)
+            # return x_acerto(guess_hist)
+            apostas_negativas.append(apostas_positivas[-1])
+            apostas_positivas.append(
+                choice(list(set(colors) - set(lista)))
+            )  # troca o ultimo elemento adicionado por outro
+            lista.remove(apostas_negativas[-1])
+            lista.append(apostas_positivas[-1])
+            # se checagem == verdadeiro
+            if checagem(lista, guess_hist):
+                return lista
+            # se checagem == falso
+            del apostas_negativas[-1]
+            del apostas_positivas[-1]
+            del possibilidades[-1]
+            del possibilidades[-1]
+            return x_acerto(guess_hist)
 
-    return final_combination 
+    except IndexError:  # so ocorre se for  imediatamente após a tentativa 0
+        return algoritmo_padrao(guess_hist, guess_hist[-1])
 
-def filter_List(right_color, right_position, inclusion):
-    global all_combinations_right_colors_already
-
-    for combination in all_combinations_right_colors_already:
-        if (inclusion == 0) and (combination[right_position] == right_color):
-            all_combinations_right_colors_already.remove(combination)
-
-        if (inclusion == 1) and (combination[right_position] != right_color):
-            all_combinations_right_colors_already.remove(combination)
 
 def player(guess_hist, res_hist):
-    """
-    Função principal do jogador.
-
-    Esta função deve retornar o seu palpite, que deve ser uma lista de 4 cores.
-    As cores disponíveis são: RED, GREEN, BLUE, YELLOW, ORANGE, BLACK, WHITE.
-
-    Parâmetros:
-    - guess_hist: lista de palpites anteriores
-    - res_hist: lista de resultados anteriores
-
-    Retorna:
-    - lista de 4 cores
-
-    Exemplo:
-    return [RED, GREEN, BLUE, YELLOW]
-    """
-
-    global historic_of_possible_guess
-    global all_combinations_right_colors_already 
-
-    # If no guesses have been made
-    if len(guess_hist) == 0 or res_hist[-1] == (0, 0):
-        historic_of_possible_guess = []
-        all_combinations_right_colors_already = []
-        return sample(colors, 4)
-    
-    if res_hist[-1][0] == 4:
-        quatro_acertos(guess_hist,res_hist)
-        '''if not all_combinations_right_colors_already:
-            all_combinations_right_colors_already = list(itertools.permutations(guess_hist[-1], len(guess_hist[0])))
-        
-        for result_index, result in enumerate(res_hist):
-            previoues_guess = guess_hist[result_index]
-            actual_guess = guess_hist[-1]
-            
-            if result[1] == 0:
-                intersect_and_filter(guess_hist, result_index, 0)
-            
-            if (result[0] == result[1]):
-                intersect_and_filter(guess_hist, result_index, 1)
-
-            if (len(res_hist) > 2) and (res_hist[result_index][0] == 3) and (res_hist[-1][1] == res_hist[result_index][1]):
-                if sum(x == y for x, y in zip(actual_guess, previoues_guess)) == 3:
-                    color = list(set(actual_guess) - set(previoues_guess))
-                    filter_List(color[0], list(actual_guess).index(color[0]), 0)
-
-        final_guess = all_combinations_right_colors_already[randint(0, len(all_combinations_right_colors_already) -1)]
-        all_combinations_right_colors_already.remove(final_guess)
-        return final_guess'''
-    
-    right_possible_colors = list(itertools.combinations(guess_hist[-1], res_hist[-1][0]))
-    if(historic_of_possible_guess):
-        historic_of_possible_guess = compare_tuple_Lists(historic_of_possible_guess, create_possible_list(right_possible_colors, guess_hist[-1]))
-    else:
-        historic_of_possible_guess = create_possible_list(right_possible_colors, guess_hist[-1])
-
-    return historic_of_possible_guess[randint(0, len(historic_of_possible_guess) -1)]
-
+    try:
+        match res_hist[-1][0]:
+            case 4:
+                quatro_acerto(guess_hist,res_hist)
+            case _:
+                try:
+                    historico_modificado.append(res_hist[-1])
+                except:
+                    pass
+                return x_acerto(guess_hist)
+    except IndexError:  # primeira jogada
+        return sample(colors, 4)  # coleta 4 elementos aleatórios da lista de cores
