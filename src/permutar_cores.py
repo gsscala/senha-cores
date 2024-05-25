@@ -95,27 +95,4 @@ def quatro_acerto(guess_hist, res_hist):
         return palpite
     else:
         return quatro_acerto(guess_hist,res_hist)
-
-
-
-
-
-
-
-    
-"""    else:
-    color_dict = {
-            "vermelho": RED,
-            "verde": GREEN,
-            "azul": BLUE,
-            "amarelo": YELLOW,
-            "laranja": ORANGE,
-            "preto": BLACK,
-            "branco": WHITE,
-        }
-        list = input().split()
-        for l in range(4):
-            list[l] = color_dict[list[l]]
-        return list"""
-
         
