@@ -1,21 +1,20 @@
-from itertools import permutations
+from itertools import permutations #Importa, da biblioteca Itertools, a função 'permutations', que retorna todas as permutações possiveis de um dado conjunto
 from random import *
 
-global posicao_cor
-global cor_certa 
-
 def achar_cores_certas(jogada, guess_hist):
+    '''Retorna uma lista das cores certas contidas em uma jogada qualquer do histórico e uma lista com a posicao das cores certas nessa jogada'''
     cor_certa = [color for color in jogada if color in guess_hist[-1]]
-    posicao_cor = [jogada.index(color) for color in guess_hist[-1] if color in jogada]
+    posicao_cor = [jogada.index(color) for color in cor_certa]
     return cor_certa, posicao_cor
 
 def checagem(palpite, guess_hist):
-    if palpite not in guess_hist:
+    '''Retorna um valor booleano referente à presença, ou não, do palpite a ser retornado pela função Player no historico 'guess_hist' '''
+    if palpite not in guess_hist: 
         return True
     else:
         return False
 
-def quatro_acertos(guess_hist, res_hist):
+def quatro_acerto(guess_hist, res_hist):
 
     listas_provaveis = []
     listas_improvaveis = []
@@ -26,13 +25,13 @@ def quatro_acertos(guess_hist, res_hist):
         jogada = guess_hist[i]
         cor_certa, posicao_cor = achar_cores_certas(jogada,guess_hist)
 
-        # case (3,3) no res_hist: adiciona cor certa conhecida na posição da cor errada de aposta (3,3)
+        # case (3,3) no res_hist: adiciona cor certa conhecida na posição da cor errada de aposta (3,3) e retorna palpite
         if tupla == (3,3):
-            lista = [color for color in jogada if color in guess_hist[-1]]
+            palpite = [color for color in jogada if color in guess_hist[-1]]
             cor_falta = [color for color in guess_hist[-1] if color not in jogada]
             cor_errada_em_jogada = [color for color in jogada if color not in guess_hist[-1]]
-            lista.insert(jogada.index(cor_errada_em_jogada[0]),cor_falta[0])
-            return lista
+            palpite.insert(jogada.index(cor_errada_em_jogada[0]),cor_falta[0])
+            return palpite
         
         #case (1,0) no res_hist: gera todas as permutações de guess_hist[-1] com a cor certa na posição errada fixada
         elif tupla == (1,0):
@@ -58,10 +57,10 @@ def quatro_acertos(guess_hist, res_hist):
             lista = [aposta for aposta in permutacoes_possiveis if aposta.index(cor_certa[0]) == posicao_cor[0] or aposta.index(cor_certa[1]) == posicao_cor[1] or aposta.index(cor_certa[2]) == posicao_cor[2]]
             listas_improvaveis.extend(lista)
 
-            '''elif tupla == (4,0):
+        elif tupla == (4,0):
             posicao_cor4 = jogada.index(cor_certa[3])
             lista = [aposta for aposta in permutacoes_possiveis if aposta.index(cor_certa[0]) == posicao_cor[0] or aposta.index(cor_certa[1]) == posicao_cor[1] or aposta.index(cor_certa[2]) == posicao_cor[2] or aposta.index(cor_certa[3]) == posicao_cor4]
-            listas_improvaveis.extend(lista)'''
+            listas_improvaveis.extend(lista)
 
         else: #Case (2,1) (3,1) (3,2): Não é possivel retirar informações uteis que ajudem a reduzir o numero de possibilidades possíveis
             continue
@@ -95,7 +94,7 @@ def quatro_acertos(guess_hist, res_hist):
     if checagem(palpite, guess_hist):
         return palpite
     else:
-        return quatro_acertos(guess_hist,res_hist)
+        return quatro_acerto(guess_hist,res_hist)
 
 
 
